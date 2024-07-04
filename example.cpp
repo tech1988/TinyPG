@@ -1,13 +1,16 @@
 #include <QCoreApplication>
-#include "TinyPG.h"
 #include <QEventLoop>
 #include <QDateTime>
 #include <QUuid>
+#include <QDebug>
+
+#include "TinyPG.h"
 
 void viewQuery(const TinyPG::Query & query)
 {
     qDebug() << query;
-    for(const auto & field : query.fields()) qDebug() << field;
+
+    for(int i = 0; i < query.fieldCount(); i++) qDebug() << query.field(i);
 
     for(int r = 0; r < query.rowCount(); r++)
     {
@@ -18,11 +21,11 @@ void viewQuery(const TinyPG::Query & query)
 
 int main(int argc, char *argv[])
 {
-
     QCoreApplication a(argc, argv);
 
     TinyPG::Connection db;
-    db.connection(QHostAddress::LocalHost, 5432, "postgres", "postgres", "Test");
+
+    db.connection("127.0.0.1", 5432, "postgres", "060288", "Test");
 
     QEventLoop loop;
     bool err = false;
@@ -38,18 +41,23 @@ int main(int argc, char *argv[])
 
     db.connect(&db, &TinyPG::Connection::connected, &loop, &QEventLoop::quit);
     db.connect(&db, &TinyPG::Connection::error, lambdaError);
+    db.connect(&db, &TinyPG::Connection::notice, [](const TinyPG::Message & notice)
+    {
+       qDebug() << "Connect Notice: " << notice.message();
+    });
+
     loop.exec();
 
     if(err) return 1;
 
-    TinyPG::Query query(&db);
+    TinyPG::Query query(db);
     query.connect(&query, &TinyPG::Query::prepareFinished, &loop, &QEventLoop::quit);
     query.connect(&query, &TinyPG::Query::executeFinished, &loop, &QEventLoop::quit);
     query.connect(&query, &TinyPG::Query::error, lambdaError);
 
     query.connect(&query, &TinyPG::Query::notice, [](const TinyPG::Message & notice)
     {
-        qDebug() << notice.message();
+       qDebug() << "Query Notice: " << notice.message();
     });
 
     query.exec("create extension if not exists \"uuid-ossp\"");

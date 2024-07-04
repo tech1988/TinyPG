@@ -1,188 +1,187 @@
 #ifndef Connection_H
 #define Connection_H
 
-#include <QTcpSocket>
-#include <QHostAddress>
-#include <QTime>
-#include <QTimeZone>
-#include <QQueue>
+#include <QObject>
+#include <QVariant>
 
 namespace TinyPG
 {
-
 #if defined(SHARED_LIB)
 #define SHARED Q_DECL_EXPORT
 #else
 #define SHARED
 #endif
 
+class FieldPrivate;
 class SHARED Field final
 {
-    friend class Connection;
-    friend class Query;
-    friend QDebug operator << (QDebug debug, const Field & field);
+   friend QDebug operator << (QDebug debug, const Field & query);
+   friend class QueryPrivate;
+   friend class ConnectionPrivateThread;
 
-    QString _name;
-    quint32 _tableOID;
-    quint16 _columnIndex;
-    quint32 _typeOID;
-    qint16 _typeSize;
-    qint32 _typeModifier;
-    quint16 _formatType;
-    QMetaType::Type _type;
-
-    explicit Field();
-public:
-    const QString & name() const;
-    quint32 tableOID() const;
-    quint16 columnIndex() const;
-    quint32 typeOID() const;
-    qint16 typeSize() const;
-    qint32 typeModifier() const;
-    quint16 formatType() const;
-    QMetaType::Type type() const;
-};
-
-QDebug operator << (QDebug debug, const Field & field);
-
-
-class SHARED Message
-{
-    friend class Connection;
-    friend QDebug operator << (QDebug debug, const Message & error);
-
-    QString _importance, _code, _message;
+   Field(FieldPrivate * p);
 
 public:
-    const QString & importance() const;
-    const QString & code() const;
-    const QString & message() const;
-};
+   Field() = delete;
+   Field(const Field & other);
+   Field(Field && other);
+   ~Field();
 
-QDebug operator << (QDebug debug, const Message & error);
+   Field & operator=(const Field & other);
+   Field & operator=(Field && other);
 
+   bool operator==(const Field & other);
+   bool operator!=(const Field & other);
 
-class Query;
-class SHARED Connection final: public QObject
-{
-    Q_OBJECT
+   const QString & name() const;
 
-    friend class Query;
+   quint32 tableOID() const;
 
-public:
-    explicit Connection(QObject * parent = nullptr);
-    ~Connection();
+   quint16 columnIndex() const;
 
-    bool isConnect();
-    void connection(const QHostAddress & address = QHostAddress::LocalHost,
-                    quint16 port = 5432,
-                    const QString & user = "postgres",
-                    const QString & password = "postgres",
-                    const QString & database = QString());
+   quint32 typeOID() const;
 
-public slots:
-    void close();
+   qint16 typeSize() const;
+
+   qint32 typeModifier() const;
+
+   quint16 formatType() const;
+
+   QMetaType::Type type() const;
 
 private:
-    QByteArray _bufferIn, _bufferOut;
-    QTcpSocket _socket;
-
-    QByteArray _user, _password, _database;
-    QMap<QString, QString> _parametersStatus;
-
-    quint32 _pid = 0, _key = 0;
-    bool _auth_success = false;
-
-    enum class ErrorOrNotice
-    {
-         Error,
-         Notice
-    };
-
-    void errorOrNoticeResponse(const char * data, quint32 size, ErrorOrNotice type);
-    bool authentication(const char * data);
-    void parameterStatus(const char * data);
-    void backendKeyData(const char * data);
-    void readyForQuery(const char * data);
-    void rowDescription(const char * data);
-    void preparedParametrs(const char * data, quint32 size);
-    void dataRow(const char * data, quint32 size);
-    void runQuery(Query * query);
-    void runPrepareQuery(Query * query);
-    void runBindQuery(Query * query);
-
-    QQueue<Query *> _tasks;
-    void taskFromQueue();
-    void endTask();
-    void addQuery(Query * query);
-
-private slots:
-    void makeStarupMessage();
-    void analyzePacket();
-
-signals:
-    void connected();
-    void disconnected();
-
-    void error(const Message & error);
-    void notice(const Message & notice);
+   FieldPrivate * p;
 };
 
+QDebug operator << (QDebug debug, const Field & query);
 
-class SHARED Query final: public QObject
+class MessagePrivate;
+class SHARED Message final
 {
-    Q_OBJECT
+   friend QDebug operator << (QDebug debug, const Message & query);
+   friend class ConnectionPrivateThread;
 
-    friend class Connection;
-    friend QDebug operator << (QDebug debug, const Query & query);
-    static quint64 _stmt_number;
+   Message(MessagePrivate * p);
 
 public:
+   Message() = delete;
+   Message(const Message & other);
+   Message(Message && other);
+   ~Message();
 
-    explicit Query(Connection * db, QObject * parent = nullptr);
-    ~Query();
+   Message & operator=(const Message & other);
+   Message & operator=(Message && other);
 
-    const QString & lastQuery() const;
+   const QString & importance() const;
 
-    void exec();
-    void exec(const QString & query);
-    void prepare(const QString & query);
+   const QString & code() const;
 
-    const QVector<QVariant> & bindValues() const;
-    void bindValue(int index, const std::variant<qint16,qint32,QVariant> & value);
-
-    const QVector<Field> & fields() const;
-
-    int rowCount() const;
-    int columnCount() const;
-    QVariant value(int row, int column) const;
-
-signals:
-    void executeFinished();
-    void prepareFinished();
-
-    void error(const Message & error);
-    void notice(const Message & notice);
+   const QString & message() const;
 
 private:
-    Connection * _db = nullptr;
-    bool _prepare = false, _prepareFinished = false;
+   MessagePrivate * p;
+};
 
-    QByteArray _stmtName;
-    QString _lastQuery;
+QDebug operator << (QDebug debug, const Message & query);
 
-    QVector<Field> _fields;
-    QVector<quint32> _preparedParametrs;
+class Connection;
+class QueryPrivate;
+class SHARED Query final : public QObject
+{
+   Q_OBJECT
 
-    QVector<QVariant> _bindValues;
-    QVector<char *> _dataRows;
+   friend QDebug operator << (QDebug debug, const Query & query);
 
-    void preparation(const QString & query);
-    void addPreparedParametr(quint32 oid);
-    void addDataRow(const char * data, quint32 size);
+public:
+   Query() = delete;
+   explicit Query(const Connection & connection);
+   Query(const Query & other);
+   Query(Query && other);
+   ~Query();
+
+   const Query & operator=(const Query & other);
+   const Query & operator=(Query && other);
+
+   bool operator==(const Query & other);
+   bool operator!=(const Query & other);
+
+   bool isLock() const;
+   bool hasConnection() const;
+
+   const QString & lastQuery() const;
+
+   bool exec();
+   bool exec(const QString & query);
+   bool prepare(const QString & query);
+
+   int preparedParameterCount() const;
+   QMetaType::Type preparedParameterType(int index) const;
+   quint32 preparedParametrOid(int index) const;
+
+   int bindCount() const;
+   void bindValue(int index, const std::variant<qint16, QVariant> &value);
+   QMetaType::Type bindedType(int index) const;
+   QVariant bindedValue(int index) const;
+
+   int fieldCount() const;
+   const Field & field(int index) const;
+
+   int rowCount() const;
+   int columnCount() const;
+   QVariant value(int row, int column) const;
+
+signals:
+   void executeFinished();
+   void prepareFinished();
+   void notDone();
+
+   void error(const Message & error);
+   void notice(const Message & notice);
+
+private:
+   QueryPrivate * p;
 };
 
 QDebug operator << (QDebug debug, const Query & query);
+
+class ConnectionPrivate;
+class Connection final : public QObject
+{
+   Q_OBJECT
+
+   friend class Query;
+
+public:
+   explicit Connection();
+   Connection(const Connection & other);
+   Connection(Connection && other);
+   ~Connection();
+
+   const Connection & operator=(const Connection & other);
+   const Connection & operator=(Connection && other);
+
+   bool operator==(const Connection & other);
+   bool operator!=(const Connection & other);
+
+   bool isConnected() const;
+
+   void connection(const QString &host = "localhost",
+                   quint16 port = 5432,
+                   const QString & user = "postgres",
+                   const QString & password = "postgres",
+                   const QString & database = "postgres");
+
+   void close();
+
+signals:
+   void connected();
+   void disconnected();
+   void error(const Message & error);
+   void notice(const Message & notice);
+
+private:
+   ConnectionPrivate * p;
+};
 
 }
 
