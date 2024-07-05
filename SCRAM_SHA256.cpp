@@ -25,7 +25,7 @@ QByteArray SCRAM_SHA256::saltPassword(QByteArray salt, int iter, QByteArray pass
 
         previous = h.result();
 
-        for(int i = 0; i < result.size(); i++) result[i] ^= previous[i];
+        for(int i = 0; i < result.size(); i++) result[i] = result[i] ^ previous[i];
     }
 
     return result;
@@ -40,7 +40,7 @@ QByteArray SCRAM_SHA256::clientProof(QByteArray saltPassword, QByteArray r, QByt
                                                                    QCryptographicHash::hash(client_key, QCryptographicHash::Sha256),
                                                                    QCryptographicHash::Sha256);
 
-    for(int i = 0; i < client_key.size(); i++) client_key[i] ^= client_signature[i];
+    for(int i = 0; i < client_key.size(); i++) client_key[i] = client_key[i] ^ client_signature[i];
 
     return out + ",p=" + client_key.toBase64();
 }
@@ -64,7 +64,7 @@ QByteArray SCRAM_SHA256::initialResponse()
 
 QByteArray SCRAM_SHA256::finalResponse(QByteArray password, QByteArray msg)
 {
-    QMap<QChar, QByteArray> mp;
+    QMap<char, QByteArray> mp;
 
     for(auto arr : msg.split(','))
     {

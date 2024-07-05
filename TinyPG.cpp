@@ -244,8 +244,6 @@ QDebug operator << (QDebug debug, const Query & query)
 
 Connection::Connection():p(new ConnectionPrivate)
 {
-   qRegisterMetaType<const Message&>();
-
    connect(p, &ConnectionPrivate::connected, this, &Connection::connected);
    connect(p, &ConnectionPrivate::disconnected, this, &Connection::disconnected);
    connect(p, &ConnectionPrivate::error, this, &Connection::error);
