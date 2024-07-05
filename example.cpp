@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
     TinyPG::Connection db;
 
-    db.connection("127.0.0.1", 5432, "postgres", "060288", "Test");
+    db.connection("127.0.0.1", 5432, "postgres", "postgres", "Test");
 
     QEventLoop loop;
     bool err = false;
