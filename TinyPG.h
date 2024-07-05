@@ -185,6 +185,4 @@ private:
 
 }
 
-//Q_DECLARE_METATYPE(TinyPG::Message)
-
 #endif
